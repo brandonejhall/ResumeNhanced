@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dark Coder Theme Design System - LaTeX Editor with AI Chat */
+
+@layer base {
+  :root {
+    /* Dark base colors */
+    --background: 220 13% 8%;
+    --foreground: 220 9% 92%;
+
+    /* Card and surface colors */
+    --card: 220 13% 10%;
+    --card-foreground: 220 9% 92%;
+
+    --popover: 220 13% 10%;
+    --popover-foreground: 220 9% 92%;
+
+    /* Primary - Cyan accent for modern coder feel */
+    --primary: 190 95% 60%;
+    --primary-foreground: 220 13% 8%;
+
+    /* Secondary - Subtle blue-gray */
+    --secondary: 220 13% 16%;
+    --secondary-foreground: 220 9% 82%;
+
+    /* Muted - For subtle backgrounds */
+    --muted: 220 13% 14%;
+    --muted-foreground: 220 9% 55%;
+
+    /* Accent - Electric blue for highlights */
+    --accent: 210 100% 65%;
+    --accent-foreground: 220 13% 8%;
+
+    /* Destructive - Red for errors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 220 9% 92%;
+
+    /* Borders and inputs */
+    --border: 220 13% 20%;
+    --input: 220 13% 16%;
+    --ring: 190 95% 60%;
+
+    /* Success - Green for LaTeX validation */
+    --success: 142 76% 50%;
+    --success-foreground: 220 13% 8%;
+
+    /* Warning - Orange for LaTeX warnings */
+    --warning: 38 92% 60%;
+    --warning-foreground: 220 13% 8%;
+
+    /* Code editor specific colors */
+    --editor-bg: 220 13% 9%;
+    --editor-line-numbers: 220 9% 40%;
+    --editor-selection: 190 95% 60% / 0.2;
+    --editor-cursor: 190 95% 60%;
+
+    /* Chat colors */
+    --chat-user: 210 100% 65%;
+    --chat-ai: 142 76% 50%;
+    --chat-bubble-user: 210 100% 65% / 0.1;
+    --chat-bubble-ai: 142 76% 50% / 0.1;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Dark theme is the default - no light theme override needed */
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-mono;
+  }
+
+  /* Code editor styling */
+  .monaco-editor {
+    background-color: hsl(var(--editor-bg)) !important;
+  }
+
+  .monaco-editor .margin {
+    background-color: hsl(var(--editor-bg)) !important;
+  }
+
+  .monaco-editor .line-numbers {
+    color: hsl(var(--editor-line-numbers)) !important;
+  }
+
+  /* Custom scrollbars */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--accent));
+  }
+}
