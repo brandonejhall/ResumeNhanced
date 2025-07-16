@@ -1,12 +1,14 @@
 import os
 from typing import Optional
+from dotenv import load_dotenv
+from openai import OpenAI
 
 class Settings:
     """Application settings loaded from environment variables"""
-    
+    load_dotenv()
     # LLM API Configuration
-    LLM_API_URL: str = "https://openrouter.ai/api/v1/chat/completions"
-    LLM_API_KEY: Optional[str] = os.getenv("LLM_API_KEY", "your-openrouter-api-key")
+    LLM_API_URL: str = os.getenv("OPEN_ROUTER_URL")
+    LLM_API_KEY: Optional[str] = os.getenv("LLM_API_KEY")
     LLM_MODEL: str = os.getenv("LLM_MODEL", "anthropic/claude-3.5-sonnet")
     LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2000"))
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))

@@ -3,21 +3,21 @@ Session management for the resume assistant
 """
 
 import uuid
+import json
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 from fastapi import HTTPException
+import redis
+
+# Connect to Redis (adjust host/port/db as needed)
+r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 class SessionManager:
-    """Manages session storage and operations"""
-    
-    def __init__(self):
-        self.sessions: Dict[str, Dict] = {}
-    
+    """Manages session storage and operations using Redis"""
+
     def create_session(self, resume_text: str, job_post: str, questions: List[str]) -> str:
-        """Create a new session and return session ID"""
         session_id = str(uuid.uuid4())
-        
-        self.sessions[session_id] = {
+        session_data = {
             "resume_text": resume_text,
             "job_post": job_post,
             "questions": questions,
@@ -25,35 +25,33 @@ class SessionManager:
             "current_question_index": 0,
             "created_at": datetime.now().isoformat()
         }
-        
+        r.set(session_id, json.dumps(session_data))
+        # Optionally set an expiration (e.g., 1 hour)
+        r.expire(session_id, 3600)
         return session_id
-    
-    def get_session(self, session_id: str) -> Dict:
-        """Get session data by ID"""
-        if session_id not in self.sessions:
+
+    def get_session(self, session_id: str) -> dict:
+        session_json = r.get(session_id)
+        if not session_json:
             raise HTTPException(status_code=404, detail="Session not found")
-        return self.sessions[session_id]
-    
-    def add_answer(self, session_id: str, answer: str) -> Dict:
-        """Add an answer to a session and return session data"""
+        return json.loads(session_json)
+
+    def add_answer(self, session_id: str, answer: str) -> dict:
         session = self.get_session(session_id)
         session["answers"].append(answer)
+        r.set(session_id, json.dumps(session))
         return session
-    
-    def is_complete(self, session: Dict) -> bool:
-        """Check if all questions are answered"""
+
+    def is_complete(self, session: dict) -> bool:
         return len(session["answers"]) >= len(session["questions"])
-    
-    def get_next_question(self, session: Dict) -> Optional[str]:
-        """Get the next question to answer"""
+
+    def get_next_question(self, session: dict) -> Optional[str]:
         if self.is_complete(session):
             return None
         return session["questions"][len(session["answers"])]
-    
-    def get_session_status(self, session_id: str) -> Dict:
-        """Get comprehensive session status"""
+
+    def get_session_status(self, session_id: str) -> dict:
         session = self.get_session(session_id)
-        
         return {
             "session_id": session_id,
             "questions": session["questions"],
@@ -62,17 +60,13 @@ class SessionManager:
             "progress": f"{len(session['answers'])}/{len(session['questions'])}",
             "created_at": session["created_at"]
         }
-    
+
     def delete_session(self, session_id: str) -> None:
-        """Delete a session"""
-        if session_id not in self.sessions:
+        if not r.delete(session_id):
             raise HTTPException(status_code=404, detail="Session not found")
-        del self.sessions[session_id]
-    
+
     def cleanup_session(self, session_id: str) -> None:
-        """Clean up session after completion"""
-        if session_id in self.sessions:
-            del self.sessions[session_id]
+        r.delete(session_id)
 
 # Global session manager instance
 session_manager = SessionManager() 

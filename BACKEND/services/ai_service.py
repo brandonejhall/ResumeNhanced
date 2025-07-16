@@ -2,53 +2,47 @@
 AI service for LLM interactions
 """
 
-import httpx
+import openai
 import json
 from typing import List, Optional
 from fastapi import HTTPException
 from config import settings
+import logging
+import re
 
 class AIService:
     """Service for AI/LLM interactions"""
     
     def __init__(self):
-        self.api_url = settings.LLM_API_URL
         self.api_key = settings.LLM_API_KEY
+        self.base_url = settings.LLM_API_URL  # Should be 'https://api.deepseek.com'
         self.model = settings.LLM_MODEL
         self.max_tokens = settings.LLM_MAX_TOKENS
         self.temperature = settings.LLM_TEMPERATURE
-    
+        self.client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url)
+        self.logger = logging.getLogger("AIService")
+        logging.basicConfig(level=logging.INFO)
+
     async def _make_api_call(self, prompt: str, system_message: str = None) -> str:
-        """Make API call to LLM service"""
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://resume-assistant.com",
-            "X-Title": "Resume Assistant"
-        }
-        
+        """Make API call to DeepSeek via OpenAI client"""
         messages = []
         if system_message:
             messages.append({"role": "system", "content": system_message})
         messages.append({"role": "user", "content": prompt})
-        
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "max_tokens": self.max_tokens,
-            "temperature": self.temperature
-        }
-        
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(self.api_url, headers=headers, json=payload)
-                response.raise_for_status()
-                result = response.json()
-                return result["choices"][0]["message"]["content"]
-            except httpx.HTTPStatusError as e:
-                raise HTTPException(status_code=500, detail=f"LLM API error: {e}")
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Error calling LLM API: {str(e)}")
+        self.logger.info(f"Calling DeepSeek API with model={self.model}, messages={messages}, max_tokens={self.max_tokens}, temperature={self.temperature}")
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+                stream=False
+            )
+            self.logger.info(f"DeepSeek API response: {response}")
+            return response.choices[0].message.content
+        except Exception as e:
+            self.logger.error(f"DeepSeek API error: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"DeepSeek API error: {str(e)}")
     
     async def analyze_resume_and_job(self, resume_text: str, job_post: str) -> List[str]:
         """Analyze resume and job posting to generate targeted questions"""
@@ -75,7 +69,9 @@ class AIService:
         
         try:
             response = await self._make_api_call(prompt, system_message)
-            questions = json.loads(response)
+            # Remove markdown code block fencing if present
+            cleaned = re.sub(r'^```json\s*|```$', '', response.strip(), flags=re.MULTILINE).strip()
+            questions = json.loads(cleaned)
             
             if not isinstance(questions, list) or len(questions) != 3:
                 raise ValueError("Invalid response format")
@@ -89,6 +85,11 @@ class AIService:
         """Enhance resume based on answers provided"""
         system_message = """You are an expert resume writer. Update LaTeX resumes to better align with job requirements while maintaining proper LaTeX formatting."""
         
+        qa_pairs = '\n'.join(
+            f"Q{i+1}: {q}\nA{i+1}: {a}"
+            for i, (q, a) in enumerate(zip(questions, answers))
+        )
+        
         prompt = f"""
         Update this LaTeX resume based on the answers provided to make it more relevant to the job posting.
         
@@ -99,7 +100,7 @@ class AIService:
         {job_post}
         
         QUESTIONS AND ANSWERS:
-        {chr(10).join([f"Q{i+1}: {q}\nA{i+1}: {a}" for i, (q, a) in enumerate(zip(questions, answers))])}
+        {qa_pairs}
         
         Update the resume by:
         1. Adding relevant information from the answers to appropriate sections

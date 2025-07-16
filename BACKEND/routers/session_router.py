@@ -51,6 +51,7 @@ async def answer_question(request: AnswerQuestionRequest):
                 session["answers"]
             )
             
+            
             # Clean up session
             session_manager.cleanup_session(request.session_id)
             

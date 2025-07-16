@@ -3,6 +3,7 @@ AI Resume Assistant API - Main Application
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from routers import session_router, health_router
 
@@ -13,6 +14,15 @@ app = FastAPI(
     description="AI-powered resume assistant that analyzes resumes against job postings",
     docs_url="/docs",
     redoc_url="/redoc"
+)
+
+# Add CORS middleware for frontend-backend connection
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include routers
