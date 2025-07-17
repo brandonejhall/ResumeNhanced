@@ -18,19 +18,17 @@ async def start_session(request: StartSessionRequest):
             request.resume_text, 
             request.job_post
         )
-        
         # Create session
         session_id = session_manager.create_session(
             request.resume_text,
             request.job_post,
             questions
         )
-        
         return StartSessionResponse(
             session_id=session_id,
-            questions=questions
+            first_question=questions[0],
+            total_questions=len(questions)
         )
-    
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error starting session: {str(e)}")
 

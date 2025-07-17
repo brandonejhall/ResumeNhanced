@@ -83,7 +83,7 @@ class AIService:
     
     async def enhance_resume(self, resume_text: str, job_post: str, questions: List[str], answers: List[str]) -> str:
         """Enhance resume based on answers provided"""
-        system_message = """You are an expert resume writer. Update LaTeX resumes to better align with job requirements while maintaining proper LaTeX formatting."""
+        system_message = """You are an expert resume writer. Suggest LaTeX snippet(s) or section(s) to add or change in the resume to better align with the job requirements, while maintaining proper LaTeX formatting. Do NOT return the entire resume, only the relevant snippet(s) or section(s) to be inserted or replaced. Clearly indicate where each change should be applied (e.g., section name or line number). Wrap each suggested snippet with '% === AI SUGGESTION START ===' and '% === AI SUGGESTION END ===' comments."""
         
         qa_pairs = '\n'.join(
             f"Q{i+1}: {q}\nA{i+1}: {a}"
@@ -91,7 +91,7 @@ class AIService:
         )
         
         prompt = f"""
-        Update this LaTeX resume based on the answers provided to make it more relevant to the job posting.
+        Based on the answers provided, suggest only the LaTeX snippet(s) or section(s) that should be added or changed in the resume to make it more relevant to the job posting.
         
         ORIGINAL RESUME:
         {resume_text}
@@ -102,22 +102,24 @@ class AIService:
         QUESTIONS AND ANSWERS:
         {qa_pairs}
         
-        Update the resume by:
-        1. Adding relevant information from the answers to appropriate sections
-        2. Strengthening sections that align with job requirements
-        3. Maintaining proper LaTeX formatting and structure
-        4. Keeping the content professional and concise
-        5. Ensuring the resume flows logically
+        Instructions:
+        - Do NOT return the entire resume.
+        - Only return the LaTeX snippet(s) or section(s) to be inserted or replaced.
+        - Clearly indicate where each change should be applied (e.g., section name or line number).
+        - Maintain proper LaTeX formatting and structure.
+        - Keep the content professional and concise.
+        - Ensure the resume flows logically.
+        - Wrap each suggested snippet with '% === AI SUGGESTION START ===' and '% === AI SUGGESTION END ===' comments.
         
-        Return ONLY the updated LaTeX resume text.
+        Return ONLY the LaTeX snippet(s) or section(s) to be added or changed.
         """
         
         try:
-            updated_resume = await self._make_api_call(prompt, system_message)
-            return updated_resume
+            updated_snippet = await self._make_api_call(prompt, system_message)
+            return updated_snippet
         except Exception as e:
-            # Return original resume if LLM call fails
-            return resume_text
+            # Return empty string if LLM call fails
+            return ""
     
     def _get_fallback_questions(self) -> List[str]:
         """Get fallback questions when LLM is unavailable"""

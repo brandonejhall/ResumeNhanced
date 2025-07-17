@@ -5,7 +5,7 @@ AI Resume Assistant API - Main Application
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
-from routers import session_router, health_router
+from routers import session_router, health_router, export_router
 
 # Create FastAPI application
 app = FastAPI(
@@ -28,6 +28,7 @@ app.add_middleware(
 # Include routers
 app.include_router(health_router.router)
 app.include_router(session_router.router)
+app.include_router(export_router.router)
 
 # Startup event
 @app.on_event("startup")

@@ -13,7 +13,8 @@ class StartSessionRequest(BaseModel):
 class StartSessionResponse(BaseModel):
     """Response model for session start"""
     session_id: str
-    questions: List[str]
+    first_question: str
+    total_questions: int
 
 class AnswerQuestionRequest(BaseModel):
     """Request model for answering a question"""

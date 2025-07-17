@@ -51,15 +51,15 @@ export function AIChat({ latexContent, onApplyChanges }: AIChatProps) {
     try {
       const res = await startSession(latexContent, jobPost);
       setSessionId(res.session_id);
-      setQuestions(res.questions);
-      setCurrentQuestion(res.questions[0]);
+      setQuestions([res.first_question]);
+      setCurrentQuestion(res.first_question);
       setAnswers([]);
       setMessages(prev => [
         ...prev,
         {
           id: Date.now().toString(),
           type: 'ai',
-          content: `🔍 Here are some targeted questions to improve your resume:\n\n${res.questions.map((q, i) => `Q${i+1}: ${q}`).join('\n')}`,
+          content: `Q1: ${res.first_question}`,
           timestamp: new Date(),
           status: 'sent'
         }
@@ -148,11 +148,11 @@ export function AIChat({ latexContent, onApplyChanges }: AIChatProps) {
       setMessages(prev => [
         ...prev,
         {
-          id: Date.now().toString(),
-          type: 'ai',
+      id: Date.now().toString(),
+      type: 'ai',
           content: `Session complete. Start a new session by pasting a new job description!`,
-          timestamp: new Date(),
-          status: 'sent'
+      timestamp: new Date(),
+      status: 'sent'
         }
       ]);
     }

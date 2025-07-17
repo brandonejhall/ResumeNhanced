@@ -15,6 +15,7 @@ interface LaTeXError {
 interface LaTeXEditorProps {
   content: string;
   onChange: (content: string) => void;
+  editorRef?: any;
 }
 
 const defaultLaTeXContent = `\\documentclass{article}
@@ -49,10 +50,10 @@ Here's an example of inline math: $E = mc^2$ and display math:
 
 \\end{document}`;
 
-export function LaTeXEditor({ content, onChange }: LaTeXEditorProps) {
+export function LaTeXEditor({ content, onChange, editorRef }: LaTeXEditorProps) {
   const [errors, setErrors] = useState<LaTeXError[]>([]);
   const [isCompiling, setIsCompiling] = useState(false);
-  const editorRef = useRef(null);
+  const editorRefLocal = useRef(null);
 
   // Simple LaTeX validation function
   const validateLaTeX = (code: string): LaTeXError[] => {
@@ -179,7 +180,7 @@ export function LaTeXEditor({ content, onChange }: LaTeXEditorProps) {
             padding: { top: 16, bottom: 16 }
           }}
           onMount={(editor) => {
-            editorRef.current = editor;
+            if (editorRef) editorRef.current = editor;
           }}
         />
       </div>
@@ -201,9 +202,9 @@ export function LaTeXEditor({ content, onChange }: LaTeXEditorProps) {
                   )}
                   onClick={() => {
                     // Focus editor and go to line
-                    if (editorRef.current) {
-                      (editorRef.current as any).focus();
-                      (editorRef.current as any).setPosition({ lineNumber: error.line, column: error.column });
+                    if (editorRefLocal.current) {
+                      (editorRefLocal.current as any).focus();
+                      (editorRefLocal.current as any).setPosition({ lineNumber: error.line, column: error.column });
                     }
                   }}
                 >

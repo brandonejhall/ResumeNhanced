@@ -2,7 +2,8 @@
 
 export interface StartSessionResponse {
   session_id: string;
-  questions: string[];
+  first_question: string;
+  total_questions: number;
 }
 
 export interface AnswerQuestionResponse {
@@ -70,4 +71,12 @@ export async function healthCheck(): Promise<HealthResponse> {
   const response = await fetch(`${BASE_URL}/health`);
   if (!response.ok) throw new Error('Health check failed');
   return response.json();
+}
+
+export async function exportPdf(latexContent: string): Promise<Response> {
+  return fetch(`${BASE_URL}/export/pdf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ latex_code: latexContent }),
+  });
 } 

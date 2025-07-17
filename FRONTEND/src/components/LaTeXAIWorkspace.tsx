@@ -5,6 +5,8 @@ import { AIChat } from './AIChat';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FileText, MessageSquare, Code2, Sparkles } from 'lucide-react';
+import { exportPdf } from '@/lib/api';
+import { useRef } from 'react';
 
 const defaultLaTeXContent = `\\documentclass{article}
 \\usepackage[utf8]{inputenc}
@@ -41,6 +43,8 @@ Here's an example of inline math: $E = mc^2$ and display math:
 export function LaTeXAIWorkspace() {
   const [latexContent, setLatexContent] = useState(defaultLaTeXContent);
   const [wordCount, setWordCount] = useState(0);
+  const editorRef = useRef<any>(null);
+  const [decorations, setDecorations] = useState<string[]>([]);
 
   const handleLatexChange = (newContent: string) => {
     setLatexContent(newContent);
@@ -53,8 +57,62 @@ export function LaTeXAIWorkspace() {
     setWordCount(words.length);
   };
 
-  const handleApplyAIChanges = (newContent: string) => {
-    setLatexContent(newContent);
+  const highlightSuggestions = (content: string) => {
+    if (!editorRef.current) return;
+    const lines = content.split('\n');
+    let inSuggestion = false;
+    let startLine = 0;
+    const ranges = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes('% === AI SUGGESTION START ===')) {
+        inSuggestion = true;
+        startLine = i + 1;
+      } else if (lines[i].includes('% === AI SUGGESTION END ===') && inSuggestion) {
+        inSuggestion = false;
+        ranges.push({ startLineNumber: startLine, endLineNumber: i + 1 });
+      }
+    }
+    const newDecorations = ranges.map(range => ({
+      range,
+      options: {
+        isWholeLine: true,
+        className: 'ai-suggestion-highlight',
+        inlineClassName: 'ai-suggestion-inline',
+      },
+    }));
+    setDecorations(
+      editorRef.current.deltaDecorations(
+        decorations,
+        newDecorations.map(d => ({
+          range: window['monaco'] ? new window['monaco'].Range(d.range.startLineNumber, 1, d.range.endLineNumber, 1) : undefined,
+          options: d.options,
+        }))
+      )
+    );
+  };
+
+  const handleApplyAIChanges = (snippet: string) => {
+    setLatexContent((prev) => {
+      const updated = prev + '\n\n' + snippet;
+      setTimeout(() => highlightSuggestions(updated), 100); // highlight after update
+      return updated;
+    });
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      const response = await exportPdf(latexContent);
+      if (!response.ok) throw new Error('Failed to export PDF');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'resume.pdf';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Failed to export PDF: ' + (e as Error).message);
+    }
   };
 
   return (
@@ -85,7 +143,7 @@ export function LaTeXAIWorkspace() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportPdf}>
             <FileText className="h-4 w-4" />
             Export PDF
           </Button>
@@ -107,6 +165,7 @@ export function LaTeXAIWorkspace() {
           <LaTeXEditor 
             content={latexContent} 
             onChange={handleLatexChange}
+            editorRef={editorRef}
           />
           
           {/* AI Chat Pane */}
