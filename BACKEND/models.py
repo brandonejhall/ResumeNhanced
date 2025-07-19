@@ -4,6 +4,7 @@ Pydantic models for request/response validation
 
 from pydantic import BaseModel
 from typing import List, Optional
+from uuid import UUID
 
 class StartSessionRequest(BaseModel):
     """Request model for starting a new session"""
@@ -50,3 +51,25 @@ class RootResponse(BaseModel):
     message: str
     version: str
     endpoints: dict 
+
+class Suggestion(BaseModel):
+    id: str  # UUID as string
+    type: str  # e.g., 'replace_section', 'add_item_to_section', etc.
+    target_section_header: str
+    context_text_before: str
+    context_text_after: str
+    original_latex_snippet: str = ""
+    suggested_latex_snippet: str
+    description: str
+
+class SuggestionListResponse(BaseModel):
+    session_id: str
+    suggestions: list[Suggestion]
+
+class ApplySuggestionRequest(BaseModel):
+    suggestion_id: str
+    resume_latex: str
+
+class ApplySuggestionResponse(BaseModel):
+    updated_resume_latex: str
+    suggestions: list[Suggestion] 

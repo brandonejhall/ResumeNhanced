@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Send, Bot, User, Sparkles, FileText, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { startSession, answerQuestion, getSessionStatus } from '@/lib/api';
+import { startSession, answerQuestion, getSessionStatus, getSuggestionsForSession } from '@/lib/api';
 
 interface Message {
   id: string;
@@ -18,9 +18,11 @@ interface Message {
 interface AIChatProps {
   latexContent: string;
   onApplyChanges: (newContent: string) => void;
+  onGetSuggestions?: (sessionId: string) => void;
+  onSessionIdChange?: (sessionId: string | null) => void;
 }
 
-export function AIChat({ latexContent, onApplyChanges }: AIChatProps) {
+export function AIChat({ latexContent, onApplyChanges, onGetSuggestions, onSessionIdChange }: AIChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -36,14 +38,54 @@ export function AIChat({ latexContent, onApplyChanges }: AIChatProps) {
   const [questions, setQuestions] = useState<string[]>([]);
   const [answers, setAnswers] = useState<string[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
+  const [isQaComplete, setIsQaComplete] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Notify parent when session_id changes
+  useEffect(() => {
+    if (onSessionIdChange) {
+      onSessionIdChange(sessionId);
+    }
+  }, [sessionId, onSessionIdChange]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Handle getting suggestions after Q&A completion
+  const handleGetSuggestions = async () => {
+    if (!sessionId || !onGetSuggestions) return;
+    setIsTyping(true);
+    try {
+      await getSuggestionsForSession(sessionId);
+      onGetSuggestions(sessionId);
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          type: 'ai',
+          content: `🎯 AI suggestions generated! Review them in the modal to apply changes to your resume.`,
+          timestamp: new Date(),
+          status: 'sent'
+        }
+      ]);
+    } catch (e) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          type: 'ai',
+          content: `❌ Failed to get suggestions: ${(e as Error).message}`,
+          timestamp: new Date(),
+          status: 'error'
+        }
+      ]);
+    }
+    setIsTyping(false);
+  };
 
   // Start a session when user submits a job post
   const handleStartSession = async (jobPost: string) => {
@@ -86,19 +128,19 @@ export function AIChat({ latexContent, onApplyChanges }: AIChatProps) {
     try {
       const res = await answerQuestion(sessionId, answer);
       setAnswers(prev => [...prev, answer]);
-      if (res.is_complete && res.updated_resume) {
+      if (res.is_complete) {
         setMessages(prev => [
           ...prev,
           {
             id: Date.now().toString(),
             type: 'ai',
-            content: `✅ All questions answered! Your resume has been enhanced.`,
+            content: `✅ All questions answered! Click "Get AI Suggestions" to review personalized recommendations for your resume.`,
             timestamp: new Date(),
             status: 'sent'
           }
         ]);
-        onApplyChanges(res.updated_resume);
         setCurrentQuestion(null);
+        setIsQaComplete(true);
       } else if (res.next_question) {
         setCurrentQuestion(res.next_question);
         setMessages(prev => [
@@ -219,6 +261,17 @@ export function AIChat({ latexContent, onApplyChanges }: AIChatProps) {
                   >
                     <Zap className="h-3 w-3" />
                     Apply Changes
+                  </Button>
+                )}
+                {message.type === 'ai' && message.content.includes('Get AI Suggestions') && (
+                  <Button 
+                    size="sm" 
+                    className="mt-3 gap-2" 
+                    onClick={handleGetSuggestions}
+                    disabled={isTyping}
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    Get AI Suggestions
                   </Button>
                 )}
               </div>

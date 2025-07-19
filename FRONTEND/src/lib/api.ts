@@ -31,6 +31,32 @@ export interface HealthResponse {
   version: string;
 }
 
+export interface Suggestion {
+  id: string;
+  type: string;
+  target_section_header: string;
+  context_text_before: string;
+  context_text_after: string;
+  original_latex_snippet?: string;
+  suggested_latex_snippet: string;
+  description: string;
+}
+
+export interface SuggestionListResponse {
+  session_id: string;
+  suggestions: Suggestion[];
+}
+
+export interface ApplySuggestionRequest {
+  suggestion_id: string;
+  resume_latex: string;
+}
+
+export interface ApplySuggestionResponse {
+  updated_resume_latex: string;
+  suggestions: Suggestion[];
+}
+
 const BASE_URL = 'http://localhost:3002';
 
 export async function startSession(resumeText: string, jobPost: string): Promise<StartSessionResponse> {
@@ -79,4 +105,36 @@ export async function exportPdf(latexContent: string): Promise<Response> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ latex_code: latexContent }),
   });
+}
+
+export async function getSuggestions(resumeText: string, jobPost: string): Promise<SuggestionListResponse> {
+  const response = await fetch(`${BASE_URL}/session/suggestions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resume_text: resumeText, job_post: jobPost }),
+  });
+  if (!response.ok) throw new Error('Failed to get suggestions');
+  return response.json();
+}
+
+export async function applySuggestion(sessionId: string, req: ApplySuggestionRequest): Promise<ApplySuggestionResponse> {
+  const response = await fetch(`${BASE_URL}/session/apply_suggestion/${sessionId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!response.ok) throw new Error('Failed to apply suggestion');
+  return response.json();
+}
+
+export async function getSuggestionsForSession(sessionId: string): Promise<SuggestionListResponse> {
+  const response = await fetch(`${BASE_URL}/session/suggestions/${sessionId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(error || 'Failed to get suggestions for session');
+  }
+  return response.json();
 } 
