@@ -53,6 +53,8 @@ export function LaTeXAIWorkspace() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [suggestionStates, setSuggestionStates] = useState<Record<string, 'pending' | 'accepted' | 'rejected'>>({});
+  const [isLLMLoading, setIsLLMLoading] = useState(false);
+  const [chatPushMessage, setChatPushMessage] = useState<string | null>(null);
 
   const handleLatexChange = (newContent: string) => {
     setLatexContent(newContent);
@@ -130,6 +132,7 @@ export function LaTeXAIWorkspace() {
       return;
     }
     
+    setIsLLMLoading(true);
     setIsLoadingSuggestions(true);
     try {
       const res = await getSuggestionsForSession(sessionId);
@@ -140,6 +143,7 @@ export function LaTeXAIWorkspace() {
       alert('Failed to fetch suggestions: ' + (e as Error).message);
     }
     setIsLoadingSuggestions(false);
+    setIsLLMLoading(false);
   };
 
   const handleGetSuggestionsFromSession = async (sessionId: string) => {
@@ -183,6 +187,8 @@ export function LaTeXAIWorkspace() {
 
   const handleApplyAll = async () => {
     if (!sessionId) return;
+    setShowSuggestions(false); // Close modal immediately
+    setIsLLMLoading(true);
     try {
       const res = await applySuggestions(sessionId, {
         resume_latex: latexContent,
@@ -190,10 +196,12 @@ export function LaTeXAIWorkspace() {
       });
       setLatexContent(res.updated_resume_latex);
       setSuggestions([]);
-      setShowSuggestions(false);
+      setChatPushMessage('✅ Changes applied successfully!');
     } catch (e) {
+      setChatPushMessage('❌ Changes failed to be applied.');
       alert('Failed to apply suggestions: ' + (e as Error).message);
     }
+    setIsLLMLoading(false);
   };
 
   return (
@@ -255,6 +263,9 @@ export function LaTeXAIWorkspace() {
             onApplyChanges={handleApplyAIChanges}
             onGetSuggestions={handleGetSuggestionsFromSession}
             onSessionIdChange={setSessionId}
+            showSuggestions={showSuggestions}
+            pushMessage={chatPushMessage}
+            onPushMessageConsumed={() => setChatPushMessage(null)}
           />
         </ResizablePanels>
         {/* Suggestion Review Modal */}
@@ -319,6 +330,16 @@ export function LaTeXAIWorkspace() {
           </DialogContent>
         </Dialog>
       </div>
+      {/* LLM Loading Overlay */}
+      {isLLMLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="flex flex-col items-center gap-4 p-8 bg-white rounded-lg shadow-lg">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary"></div>
+            <div className="text-lg font-semibold">AI is working on your request...</div>
+            <div className="text-sm text-muted-foreground">This may take a minute. Please hold tight.</div>
+          </div>
+        </div>
+      )}
       {/* Bottom Status Bar */}
       <footer className="h-8 border-t border-border bg-muted/30 flex items-center justify-between px-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-4">

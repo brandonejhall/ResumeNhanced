@@ -20,9 +20,12 @@ interface AIChatProps {
   onApplyChanges: (newContent: string) => void;
   onGetSuggestions?: (sessionId: string) => void;
   onSessionIdChange?: (sessionId: string | null) => void;
+  showSuggestions?: boolean; // <-- add this prop
+  pushMessage?: string;
+  onPushMessageConsumed?: () => void;
 }
 
-export function AIChat({ latexContent, onApplyChanges, onGetSuggestions, onSessionIdChange }: AIChatProps) {
+export function AIChat({ latexContent, onApplyChanges, onGetSuggestions, onSessionIdChange, showSuggestions, pushMessage, onPushMessageConsumed }: AIChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -41,6 +44,8 @@ export function AIChat({ latexContent, onApplyChanges, onGetSuggestions, onSessi
   const [isQaComplete, setIsQaComplete] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isLLMLoading, setIsLLMLoading] = useState(false);
+  const [isOrganizingSuggestions, setIsOrganizingSuggestions] = useState(false);
 
   // Notify parent when session_id changes
   useEffect(() => {
@@ -59,6 +64,17 @@ export function AIChat({ latexContent, onApplyChanges, onGetSuggestions, onSessi
   const handleGetSuggestions = async () => {
     if (!sessionId || !onGetSuggestions) return;
     setIsTyping(true);
+    setIsLLMLoading(true);
+    setMessages(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        type: 'ai',
+        content: `⏳ Loading suggestions... This may take up to a minute.`,
+        timestamp: new Date(),
+        status: 'sending'
+      }
+    ]);
     try {
       await getSuggestionsForSession(sessionId);
       onGetSuggestions(sessionId);
@@ -85,6 +101,7 @@ export function AIChat({ latexContent, onApplyChanges, onGetSuggestions, onSessi
       ]);
     }
     setIsTyping(false);
+    setIsLLMLoading(false);
   };
 
   // Start a session when user submits a job post
@@ -201,6 +218,48 @@ export function AIChat({ latexContent, onApplyChanges, onGetSuggestions, onSessi
     setInputValue('');
   };
 
+  // Handler for Apply Changes button in chat
+  const handleApplyChangesClick = () => {
+    setIsOrganizingSuggestions(true);
+    setMessages(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        type: 'ai',
+        content: `🗂️ Organizing suggestions... This may take up to a minute.`,
+        timestamp: new Date(),
+        status: 'sending'
+      }
+    ]);
+    if (onGetSuggestions && sessionId) {
+      onGetSuggestions(sessionId);
+    }
+  };
+
+  // Remove the loading message when the modal opens
+  useEffect(() => {
+    if (isOrganizingSuggestions && showSuggestions) {
+      setIsOrganizingSuggestions(false);
+      setMessages(prev => prev.filter(m => !m.content.includes('Organizing suggestions')));
+    }
+  }, [isOrganizingSuggestions, showSuggestions]);
+
+  useEffect(() => {
+    if (pushMessage) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          type: 'ai',
+          content: pushMessage,
+          timestamp: new Date(),
+          status: 'sent'
+        }
+      ]);
+      if (onPushMessageConsumed) onPushMessageConsumed();
+    }
+  }, [pushMessage, onPushMessageConsumed]);
+
   return (
     <div className="h-full flex flex-col bg-card">
       {/* Header */}
@@ -257,7 +316,8 @@ export function AIChat({ latexContent, onApplyChanges, onGetSuggestions, onSessi
                   <Button 
                     size="sm" 
                     className="mt-3 gap-2" 
-                    onClick={() => onApplyChanges(message.content)}
+                    onClick={handleApplyChangesClick}
+                    disabled={isTyping || isOrganizingSuggestions}
                   >
                     <Zap className="h-3 w-3" />
                     Apply Changes
@@ -268,7 +328,7 @@ export function AIChat({ latexContent, onApplyChanges, onGetSuggestions, onSessi
                     size="sm" 
                     className="mt-3 gap-2" 
                     onClick={handleGetSuggestions}
-                    disabled={isTyping}
+                    disabled={isTyping || isLLMLoading}
                   >
                     <Sparkles className="h-3 w-3" />
                     Get AI Suggestions
