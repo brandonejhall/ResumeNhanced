@@ -213,6 +213,26 @@ class AIService:
             self.logger.error(f"Failed to generate structured suggestions: {e}")
             return []
 
+    async def rewrite_resume_with_suggestions(self, resume_latex: str, suggestions: List[Suggestion]) -> str:
+        """Call the LLM to rewrite the resume, integrating the accepted suggestions."""
+        import json
+        system_message = "You are an expert resume writer. Given a LaTeX resume and a list of accepted suggestions, rewrite the resume to naturally and professionally integrate the suggestions. Preserve LaTeX structure. Do not simply append the suggestions; merge them into the appropriate sections."
+        prompt = f"""
+        ORIGINAL RESUME (LaTeX):
+        {resume_latex}
+
+        ACCEPTED SUGGESTIONS (as JSON array):
+        {json.dumps([s.dict() for s in suggestions], indent=2)}
+
+        Instructions:
+        - Integrate the suggestions into the resume in the most natural and professional way.
+        - Do not simply append the suggestions; merge them into the appropriate sections.
+        - Preserve LaTeX structure and formatting.
+        - Return ONLY the rewritten LaTeX resume.
+        """
+        rewritten = await self._make_api_call(prompt, system_message)
+        return rewritten.strip()
+
     def parse_resume_latex(self, latex_string):
         """Parse the LaTeX resume into a structured representation for known template."""
         # Parse \section{...}
@@ -301,12 +321,27 @@ class AIService:
                         'line': insert_line + 1
                     })
                 elif suggestion.type == 'replace_section':
-                    # Replace all lines in section
-                    section['subheadings'] = [{
-                        'type': 'raw',
-                        'content': suggestion.suggested_latex_snippet,
-                        'line': section['start_line']
-                    }]
+                    # Only replace if explicitly requested and we have the original content
+                    if suggestion.original_latex_snippet:
+                        # Find and replace specific items
+                        new_subheadings = []
+                        for sub in section['subheadings']:
+                            if sub.get('content', '').strip() == suggestion.original_latex_snippet.strip():
+                                new_subheadings.append({
+                                    'type': 'item',
+                                    'content': suggestion.suggested_latex_snippet,
+                                    'line': sub['line']
+                                })
+                            else:
+                                new_subheadings.append(sub)
+                        section['subheadings'] = new_subheadings
+                    else:
+                        # Add as new item if no original specified
+                        section['subheadings'].append({
+                            'type': 'item',
+                            'content': suggestion.suggested_latex_snippet,
+                            'line': len(section['subheadings']) + 1
+                        }) # <--- Missing parenthesis was here
                 elif suggestion.type == 'update_item_in_section':
                     # Find and replace the item
                     for sub in section['subheadings']:

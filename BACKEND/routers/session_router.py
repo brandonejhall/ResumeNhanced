@@ -3,7 +3,7 @@ Session router for session management endpoints
 """
 
 from fastapi import APIRouter, HTTPException
-from models import StartSessionRequest, StartSessionResponse, AnswerQuestionRequest, AnswerQuestionResponse, Suggestion, SuggestionListResponse, ApplySuggestionRequest, ApplySuggestionResponse
+from models import StartSessionRequest, StartSessionResponse, AnswerQuestionRequest, AnswerQuestionResponse, Suggestion, SuggestionListResponse, ApplySuggestionRequest, ApplySuggestionResponse, ApplySuggestionsRequest
 from session_manager import session_manager
 from services.ai_service import ai_service
 
@@ -161,7 +161,7 @@ async def apply_suggestion(session_id: str, req: ApplySuggestionRequest):
         suggestion = next((s for s in suggestions if s.id == req.suggestion_id), None)
         if not suggestion:
             raise HTTPException(status_code=404, detail="Suggestion not found")
-        parsed_resume = ai_service.parse_resume_latex(req.resume_latex)
+        parsed_resume = ai_service.parse_resume_latex(session["resume_text"])
         updated_parsed = ai_service.apply_suggestion(parsed_resume, suggestion)
         updated_resume = ai_service.serialize_resume_latex(updated_parsed)
         # Remove applied suggestion
@@ -174,6 +174,24 @@ async def apply_suggestion(session_id: str, req: ApplySuggestionRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error applying suggestion: {str(e)}")
+
+@router.post("/apply_suggestions/{session_id}", response_model=ApplySuggestionResponse)
+async def apply_suggestions(session_id: str, req: ApplySuggestionsRequest):
+    """Apply all accepted suggestions to the resume in the session using LLM-driven rewrite."""
+    try:
+        # LLM-driven rewrite
+        updated_resume = await ai_service.rewrite_resume_with_suggestions(req.resume_latex, req.accepted_suggestions)
+        # Optionally, update the session's resume
+        session = session_manager.get_session(session_id)
+        session['resume_text'] = updated_resume
+        session['suggestions'] = "[]"
+        session_manager._set_session(session_id, session)
+        return ApplySuggestionResponse(
+            updated_resume_latex=updated_resume,
+            suggestions=[]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error applying suggestions: {str(e)}")
 
 @router.get("/{session_id}")
 async def get_session_status(session_id: str):

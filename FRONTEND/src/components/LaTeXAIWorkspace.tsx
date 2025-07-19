@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { FileText, MessageSquare, Code2, Sparkles, Lightbulb, X } from 'lucide-react';
 import { exportPdf } from '@/lib/api';
 import { useRef } from 'react';
-import { getSuggestions, applySuggestion, Suggestion, getSuggestionsForSession } from '@/lib/api';
+import { getSuggestions, applySuggestion, Suggestion, getSuggestionsForSession, applySuggestions, ApplySuggestionsRequest } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
 
@@ -52,6 +52,7 @@ export function LaTeXAIWorkspace() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestionStates, setSuggestionStates] = useState<Record<string, 'pending' | 'accepted' | 'rejected'>>({});
 
   const handleLatexChange = (newContent: string) => {
     setLatexContent(newContent);
@@ -133,6 +134,7 @@ export function LaTeXAIWorkspace() {
     try {
       const res = await getSuggestionsForSession(sessionId);
       setSuggestions(res.suggestions);
+      setSuggestionStates(Object.fromEntries(res.suggestions.map(s => [s.id, 'pending'])));
       setShowSuggestions(true);
     } catch (e) {
       alert('Failed to fetch suggestions: ' + (e as Error).message);
@@ -158,7 +160,7 @@ export function LaTeXAIWorkspace() {
     try {
       const res = await applySuggestion(sessionId, {
         suggestion_id: suggestion.id,
-        resume_latex: latexContent,
+        
       });
       setLatexContent(res.updated_resume_latex);
       setSuggestions(res.suggestions);
@@ -172,6 +174,26 @@ export function LaTeXAIWorkspace() {
   const handleRejectSuggestion = (suggestion: Suggestion) => {
     setSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
     if (suggestions.length === 1) setShowSuggestions(false);
+  };
+
+  const handleAccept = (id: string) => setSuggestionStates(prev => ({ ...prev, [id]: 'accepted' }));
+  const handleReject = (id: string) => setSuggestionStates(prev => ({ ...prev, [id]: 'rejected' }));
+  const allReviewed = suggestions.length > 0 && suggestions.every(s => suggestionStates[s.id] !== 'pending');
+  const acceptedSuggestions = suggestions.filter(s => suggestionStates[s.id] === 'accepted');
+
+  const handleApplyAll = async () => {
+    if (!sessionId) return;
+    try {
+      const res = await applySuggestions(sessionId, {
+        resume_latex: latexContent,
+        accepted_suggestions: acceptedSuggestions,
+      });
+      setLatexContent(res.updated_resume_latex);
+      setSuggestions([]);
+      setShowSuggestions(false);
+    } catch (e) {
+      alert('Failed to apply suggestions: ' + (e as Error).message);
+    }
   };
 
   return (
@@ -277,12 +299,8 @@ export function LaTeXAIWorkspace() {
                         </pre>
                       </div>
                       <div className="flex gap-2 mt-2">
-                        <Button size="sm" onClick={() => handleAcceptSuggestion(s)} className="flex-1">
-                          Accept
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleRejectSuggestion(s)} className="flex-1">
-                          Reject
-                        </Button>
+                        <Button size="sm" onClick={() => handleAccept(s.id)} className={`flex-1 ${suggestionStates[s.id] === 'accepted' ? 'bg-green-200' : ''}`}>Accept</Button>
+                        <Button size="sm" variant="outline" onClick={() => handleReject(s.id)} className={`flex-1 ${suggestionStates[s.id] === 'rejected' ? 'bg-red-200' : ''}`}>Reject</Button>
                       </div>
                     </Card>
                   ))}
@@ -293,6 +311,9 @@ export function LaTeXAIWorkspace() {
             <DialogFooter className="pt-4 border-t">
               <Button variant="outline" onClick={() => setShowSuggestions(false)}>
                 Close
+              </Button>
+              <Button onClick={handleApplyAll} disabled={!allReviewed || acceptedSuggestions.length === 0}>
+                Apply All
               </Button>
             </DialogFooter>
           </DialogContent>

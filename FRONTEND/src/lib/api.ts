@@ -49,12 +49,17 @@ export interface SuggestionListResponse {
 
 export interface ApplySuggestionRequest {
   suggestion_id: string;
-  resume_latex: string;
+  
 }
 
 export interface ApplySuggestionResponse {
   updated_resume_latex: string;
   suggestions: Suggestion[];
+}
+
+export interface ApplySuggestionsRequest {
+  resume_latex: string;
+  accepted_suggestions: Suggestion[];
 }
 
 const BASE_URL = 'http://localhost:3002';
@@ -124,6 +129,16 @@ export async function applySuggestion(sessionId: string, req: ApplySuggestionReq
     body: JSON.stringify(req),
   });
   if (!response.ok) throw new Error('Failed to apply suggestion');
+  return response.json();
+}
+
+export async function applySuggestions(sessionId: string, req: ApplySuggestionsRequest): Promise<ApplySuggestionResponse> {
+  const response = await fetch(`${BASE_URL}/session/apply_suggestions/${sessionId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!response.ok) throw new Error('Failed to apply suggestions');
   return response.json();
 }
 

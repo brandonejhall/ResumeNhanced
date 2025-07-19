@@ -68,8 +68,12 @@ class SuggestionListResponse(BaseModel):
 
 class ApplySuggestionRequest(BaseModel):
     suggestion_id: str
-    resume_latex: str
+    
 
 class ApplySuggestionResponse(BaseModel):
     updated_resume_latex: str
     suggestions: list[Suggestion] 
+
+class ApplySuggestionsRequest(BaseModel):
+    resume_latex: str
+    accepted_suggestions: list[Suggestion] 
