@@ -40,4 +40,11 @@ async def export_pdf(request: Request):
                 headers={"Content-Disposition": "attachment; filename=resume.pdf"}
             )
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"LaTeX compilation failed: {e}")
+            error_msg = f"LaTeX compilation failed: {e}\n"
+            if 'result' in locals():
+                print("==== LaTeX STDOUT ====")
+                print(result.stdout.decode())
+                print("==== LaTeX STDERR ====")
+                print(result.stderr.decode())
+                error_msg += f"\nSTDOUT:\n{result.stdout.decode()}\nSTDERR:\n{result.stderr.decode()}"
+            raise HTTPException(status_code=500, detail=error_msg)
